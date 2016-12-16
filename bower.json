@@ -1,0 +1,21 @@
+{
+  "name": "purescript-endpoints-websocket",
+  "version": "0.0.1",
+  "authors": [
+    "Simon Van Casteren <simon.van.casteren@gmail.com>"
+  ],
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "output",
+    "example"
+  ],
+  "dependencies": {
+    "purescript-prelude": "^2.1.0",
+    "purescript-console": "^2.0.0",
+    "purescript-node-http": "^3.0.1",
+    "purescript-argonaut-codecs": "^2.0.0",
+    "purescript-websocket-simple": "^1.0.1"
+  }
+}

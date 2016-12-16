@@ -1,0 +1,14 @@
+{
+  "dependencies": {
+  },
+  "devDependencies": {
+    "browserify": "latest"
+  },
+  "scripts": {
+    "build": "pulp build",
+    "compile:client": "psc-bundle output/**/{index,foreign}.js --main WSEndpointExample.Client --module WSEndpointExample.Client | browserify -e - -o static/client.js",
+    "compile:server": "psc-bundle output/**/{index,foreign}.js --main WSEndpointExample.Server --module WSEndpointExample.Server -o static/server.js",
+    "run:server": "node static/server.js",
+    "start": "npm run build && npm run compile:client && npm run compile:server && npm run run:server"
+  }
+}

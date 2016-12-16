@@ -1,0 +1,6 @@
+{
+  "name": "purescript-endpoints-websocket example",
+  "dependencies": {
+    "purescript-endpoints-websocket": "latest"
+  }
+}
