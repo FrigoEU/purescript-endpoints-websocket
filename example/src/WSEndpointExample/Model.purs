@@ -1,6 +1,6 @@
 module WSEndpointExample.Model where
 
--- import Network.WebSocket (WSEndpoint(..))
+import Network.WebSocket (WSEndpoint(..))
 
--- echochamber :: WSEndpoint String
--- echochamber = WSEndpoint "echochamber"
+echochamber :: WSEndpoint String
+echochamber = WSEndpoint "echochamber"

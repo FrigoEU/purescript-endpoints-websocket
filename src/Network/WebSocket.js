@@ -6,8 +6,20 @@ exports.connect = function(errCb){
         var ws = new WebSocket(url);
         var messageHandlers = [];
         var closeHandlers = [];
+        var fakeWs = {
+          on: function(event, cb){
+            if (event === "message"){
+              messageHandlers.push(cb);
+            } else if (event === "close"){
+              closeHandlers.push(cb);
+            }
+          },
+          send: function(mess){
+            ws.send(mess);
+          }
+        };
         ws.onopen = function(){
-          successCb(ws)();
+          successCb(fakeWs)();
         };
         ws.onerror = function(err){
           errCb(err)();
@@ -20,18 +32,6 @@ exports.connect = function(errCb){
         ws.onclose = function(){
           for (var i = 0; i < closeHandlers.length; i++){
             closeHandlers[i]({})();
-          }
-        };
-        return {
-          on: function(event, cb){
-            if (event === "message"){
-              messageHandlers.push(cb);
-            } else if (event === "close"){
-              closeHandlers.push(cb);
-            }
-          },
-          send: function(mess){
-            ws.send(mess);
           }
         };
       };

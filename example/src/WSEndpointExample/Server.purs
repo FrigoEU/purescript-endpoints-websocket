@@ -11,10 +11,16 @@ module WSEndpointExample.Server where
 -- import WSEndpointExample.Model (Order(Order), getOrdersEndpoint)
 
 -- import Node.Express.Endpoint (EXPRESS, listen, hostStatic, hostEndpoint, makeApp)
-import Node.WebSocket
+import Network.WebSocket (listenTo, sendTo)
+import Node.HTTP (createServer)
+import Node.WebSocket (onConnection, webSocketServer)
+import Prelude (bind, pure, unit, (<>))
+import WSEndpointExample.Model (echochamber)
 
 -- ----------------------------
 
 main = do
-  log "ab"
-
+  server <- createServer (\_ _ -> pure unit)
+  wsserver <- webSocketServer {port: 8008, server}
+  onConnection wsserver \ws -> do
+    listenTo ws echochamber \mess -> sendTo ws echochamber ("Echoed: " <> mess)

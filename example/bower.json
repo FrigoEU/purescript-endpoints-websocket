@@ -1,6 +1,7 @@
 {
   "name": "purescript-endpoints-websocket example",
   "dependencies": {
-    "purescript-endpoints-websocket": "latest"
+    "purescript-endpoints-websocket": "latest",
+    "purescript-js-timers": "^2.0.0"
   }
 }

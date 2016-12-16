@@ -1,21 +1,13 @@
 module WSEndpointExample.Client where
 
--- import Prelude (Unit, unit, return, show, (<>), ($), bind)
+import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Timer (setInterval)
+import Network.WebSocket (connect, listenTo, sendTo)
+import Prelude (Unit, pure, show, unit, (*>), (<>), bind)
+import WSEndpointExample.Model (echochamber)
 
--- import Control.Monad.Eff (Eff)
--- import Control.Monad.Eff.Class (liftEff)
--- import Control.Monad.Eff.Exception (message)
--- import Control.Monad.Aff (runAff)
--- import Control.Monad.Aff.Endpoint (execEndpoint)
-
--- import Network.HTTP.Affjax (AJAX)
-
--- import WSEndpointExample.Model (getOrdersEndpoint)
-
--- ----------------------------
-
--- foreign import data DOM :: !
--- foreign import appendToBody :: forall eff. String -> Eff (dom :: DOM | eff) Unit
+foreign import data DOM :: !
+foreign import appendToBody :: forall eff. String -> Eff (dom :: DOM | eff) Unit
 
 -- main :: forall eff. Eff ( dom :: DOM , ajax :: AJAX | eff ) Unit
 -- main = runAff (\e -> appendToBody $ "Error: " <> message e) (\_ -> appendToBody ("Done!")) do
@@ -24,3 +16,10 @@ module WSEndpointExample.Client where
 --   liftEff $ appendToBody $ "OrdersForOne: " <> show ordersForOne
 --   liftEff $ appendToBody $ "OrdersForTwo: " <> show ordersForTwo
 --   return unit
+
+main = do
+  connect (\err -> appendToBody ("Error connecting: " <> show err))
+          (\ws -> do
+              setInterval 2000 (sendTo ws echochamber "sending stuff") *> pure unit
+              listenTo ws echochamber \mess -> appendToBody mess)
+          "ws://localhost:8008"
