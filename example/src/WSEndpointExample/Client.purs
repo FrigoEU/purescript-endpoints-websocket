@@ -21,5 +21,7 @@ main = do
   connect (\err -> appendToBody ("Error connecting: " <> show err))
           (\ws -> do
               setInterval 2000 (sendTo ws echochamber "sending stuff") *> pure unit
-              listenTo ws echochamber \mess -> appendToBody mess)
+              listenTo ws echochamber \mess -> appendToBody mess
+              pure unit
+          )
           "ws://localhost:8008"

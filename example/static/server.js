@@ -890,21 +890,36 @@ var PS = {};
 })(PS["Data.Argonaut.Parser"] = PS["Data.Argonaut.Parser"] || {});
 (function(exports) {
 
-  exports.onMessage = function(ws){
-    return function(cb){
-      return function(){
-        ws.on("message", function(mess){
-          cb(mess)();
-        });
-      };
+  exports.wrapWS = function(ws){
+    var messageHandlers = [];
+    var closeHandlers = [];
+    ws.onmessage = function(ev){
+      for (var i = 0; i < messageHandlers.length; i++){
+        messageHandlers[i](ev.data);
+      }
     };
-  };
-
-  exports.send = function(ws){
-    return function(mess){
-      return function(){
+    ws.onclose = function(){
+      for (var i = 0; i < closeHandlers.length; i++){
+        closeHandlers[i]();
+      }
+    };
+    return {
+      onMessage: function(cb){
+        messageHandlers.push(cb);
+        return function(){
+          messageHandlers.splice(messageHandlers.indexOf(cb), 1);
+        };
+      },
+      onClose: function(cb){
+        closeHandlers.push(cb);
+        return function(){
+          closeHandlers.splice(closeHandlers.indexOf(cb), 1);
+        };
+      },
+      send: function(mess){
         ws.send(mess);
-      };
+      },
+      ws: ws
     };
   };
 })(PS["Network.WebSocket"] = PS["Network.WebSocket"] || {});
@@ -931,7 +946,8 @@ var PS = {};
   var Data_Argonaut_Encode_Combinators = PS["Data.Argonaut.Encode.Combinators"];
   var Data_Function = PS["Data.Function"];
   var Control_Category = PS["Control.Category"];
-  var Data_Eq = PS["Data.Eq"];        
+  var Data_Eq = PS["Data.Eq"];
+  var Control_Semigroupoid = PS["Control.Semigroupoid"];        
   var WSMessage = function (x) {
       return x;
   };
@@ -948,11 +964,11 @@ var PS = {};
       return Data_Argonaut_Encode_Combinators.extend(Data_Argonaut_Encode_Class.encodeJsonJson)(Data_Argonaut_Encode_Combinators.assoc(Data_Argonaut_Encode_Class.encodeJsonJString)("t")(v.t))(Data_Argonaut_Encode_Combinators.extend(Data_Argonaut_Encode_Class.encodeJsonJson)(Data_Argonaut_Encode_Combinators.assoc(Data_Argonaut_Encode_Class.encodeJsonJString)("m")(v.m))(Data_Argonaut_Core.jsonEmptyObject));
   });
   var sendTo = function (dictEncodeJson) {
-      return function (ws) {
-          return function (v) {
+      return function (v) {
+          return function (v1) {
               return function (a) {
-                  return $foreign.send(ws)(Data_Argonaut_Core.stringify(Data_Argonaut_Encode_Class.encodeJson(encodeJsonWSMessage)({
-                      t: v.value0, 
+                  return v.send(Data_Argonaut_Core.stringify(Data_Argonaut_Encode_Class.encodeJson(encodeJsonWSMessage)({
+                      t: v1.value0, 
                       m: Data_Argonaut_Core.stringify(Data_Argonaut_Encode_Class.encodeJson(dictEncodeJson)(a))
                   })));
               };
@@ -972,22 +988,22 @@ var PS = {};
       })(Data_Argonaut_Core.toObject(json));
   });
   var listenTo = function (dictDecodeJson) {
-      return function (ws) {
-          return function (v) {
+      return function (v) {
+          return function (v1) {
               return function (handler) {
                   var go = function (mess) {
-                      return Data_Either.either(Control_Monad_Eff_Console.log)(Control_Category.id(Control_Category.categoryFn))(Control_Bind.bind(Data_Either.bindEither)(Control_Bind.bind(Data_Either.bindEither)(Data_Argonaut_Parser.jsonParser(mess))(Data_Argonaut_Decode_Class.decodeJson(decodeJsonWSMessage)))(function (v1) {
-                          var $19 = v1.t === v.value0;
-                          if ($19) {
-                              return Data_Functor.mapFlipped(Data_Either.functorEither)(Control_Bind.bind(Data_Either.bindEither)(Data_Argonaut_Parser.jsonParser(v1.m))(Data_Argonaut_Decode_Class.decodeJson(dictDecodeJson)))(handler);
+                      return Data_Either.either(Control_Monad_Eff_Console.log)(Control_Category.id(Control_Category.categoryFn))(Control_Bind.bind(Data_Either.bindEither)(Control_Bind.bind(Data_Either.bindEither)(Data_Argonaut_Parser.jsonParser(mess))(Data_Argonaut_Decode_Class.decodeJson(decodeJsonWSMessage)))(function (v2) {
+                          var $21 = v2.t === v1.value0;
+                          if ($21) {
+                              return Data_Functor.mapFlipped(Data_Either.functorEither)(Control_Bind.bind(Data_Either.bindEither)(Data_Argonaut_Parser.jsonParser(v2.m))(Data_Argonaut_Decode_Class.decodeJson(dictDecodeJson)))(handler);
                           };
-                          if (!$19) {
+                          if (!$21) {
                               return new Data_Either.Left("WSMessage type param incorrect");
                           };
-                          throw new Error("Failed pattern match at Network.WebSocket line 67, column 20 - line 69, column 66: " + [ $19.constructor.name ]);
+                          throw new Error("Failed pattern match at Network.WebSocket line 71, column 20 - line 73, column 66: " + [ $21.constructor.name ]);
                       }));
                   };
-                  return $foreign.onMessage(ws)(go);
+                  return v.onMessage(go);
               };
           };
       };
@@ -998,6 +1014,7 @@ var PS = {};
   exports["sendTo"] = sendTo;
   exports["decodeJsonWSMessage"] = decodeJsonWSMessage;
   exports["encodeJsonWSMessage"] = encodeJsonWSMessage;
+  exports["wrapWS"] = $foreign.wrapWS;
 })(PS["Network.WebSocket"] = PS["Network.WebSocket"] || {});
 (function(exports) {
     "use strict";
@@ -1033,7 +1050,7 @@ var PS = {};
     };
   };
 
-  exports.onConnection = function(wss){
+  exports.onConnectionImpl = function(wss){
     return function(cb){
       return function(){
         wss.on("connection", function(ws){
@@ -1051,7 +1068,15 @@ var PS = {};
   var Network_WebSocket = PS["Network.WebSocket"];
   var Node_HTTP = PS["Node.HTTP"];
   var Prelude = PS["Prelude"];
-  exports["onConnection"] = $foreign.onConnection;
+  var Control_Semigroupoid = PS["Control.Semigroupoid"];        
+  var onConnection = function (wss) {
+      return function (cb) {
+          return $foreign.onConnectionImpl(wss)(function ($0) {
+              return cb(Network_WebSocket.wrapWS($0));
+          });
+      };
+  };
+  exports["onConnection"] = onConnection;
   exports["webSocketServer"] = $foreign.webSocketServer;
 })(PS["Node.WebSocket"] = PS["Node.WebSocket"] || {});
 (function(exports) {
@@ -1062,8 +1087,7 @@ var PS = {};
   exports["echochamber"] = echochamber;
 })(PS["WSEndpointExample.Model"] = PS["WSEndpointExample.Model"] || {});
 (function(exports) {
-  // Generated by psc version 0.10.3
-  "use strict";
+    "use strict";
   var Network_WebSocket = PS["Network.WebSocket"];
   var Node_HTTP = PS["Node.HTTP"];
   var Node_WebSocket = PS["Node.WebSocket"];
@@ -1076,6 +1100,10 @@ var PS = {};
   var Data_Argonaut_Decode_Class = PS["Data.Argonaut.Decode.Class"];
   var Data_Argonaut_Encode_Class = PS["Data.Argonaut.Encode.Class"];
   var Data_Semigroup = PS["Data.Semigroup"];        
+
+  /**
+ * -----------------------------
+ */  
   var main = function __do() {
       var v = Node_HTTP.createServer(function (v) {
           return function (v1) {
@@ -1087,9 +1115,12 @@ var PS = {};
           server: v
       })();
       return Node_WebSocket.onConnection(v1)(function (ws) {
-          return Network_WebSocket.listenTo(Data_Argonaut_Decode_Class.decodeJsonString)(ws)(WSEndpointExample_Model.echochamber)(function (mess) {
-              return Network_WebSocket.sendTo(Data_Argonaut_Encode_Class.encodeJsonJString)(ws)(WSEndpointExample_Model.echochamber)("Echoed: " + mess);
-          });
+          return function __do() {
+              Network_WebSocket.listenTo(Data_Argonaut_Decode_Class.decodeJsonString)(ws)(WSEndpointExample_Model.echochamber)(function (mess) {
+                  return Network_WebSocket.sendTo(Data_Argonaut_Encode_Class.encodeJsonJString)(ws)(WSEndpointExample_Model.echochamber)("Echoed: " + mess);
+              })();
+              return Data_Unit.unit;
+          };
       })();
   };
   exports["main"] = main;

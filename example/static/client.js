@@ -941,62 +941,52 @@ var PS = {};
   };
   exports["jsonParser"] = jsonParser;
 })(PS["Data.Argonaut.Parser"] = PS["Data.Argonaut.Parser"] || {});
-(function(exports) {// TODO this is kinda shit, confuses PS and JS style
-  exports.connect = function(errCb){
+(function(exports) {exports.connectImpl = function(errCb){
     return function(successCb){
       return function(url){
         return function(){
           var ws = new WebSocket(url);
-          var messageHandlers = [];
-          var closeHandlers = [];
-          var fakeWs = {
-            on: function(event, cb){
-              if (event === "message"){
-                messageHandlers.push(cb);
-              } else if (event === "close"){
-                closeHandlers.push(cb);
-              }
-            },
-            send: function(mess){
-              ws.send(mess);
-            }
-          };
           ws.onopen = function(){
-            successCb(fakeWs)();
+            successCb(ws)();
           };
           ws.onerror = function(err){
             errCb(err)();
-          };
-          ws.onmessage = function(ev){
-            for (var i = 0; i < messageHandlers.length; i++){
-              messageHandlers[i](ev.data);
-            }
-          };
-          ws.onclose = function(){
-            for (var i = 0; i < closeHandlers.length; i++){
-              closeHandlers[i]();
-            }
           };
         };
       };
     };
   };
 
-  exports.onMessage = function(ws){
-    return function(cb){
-      return function(){
-        ws.on("message", function(mess){
-          cb(mess)();
-        });
-      };
+  exports.wrapWS = function(ws){
+    var messageHandlers = [];
+    var closeHandlers = [];
+    ws.onmessage = function(ev){
+      for (var i = 0; i < messageHandlers.length; i++){
+        messageHandlers[i](ev.data);
+      }
     };
-  };
-
-  exports.send = function(ws){
-    return function(mess){
-      return function(){
+    ws.onclose = function(){
+      for (var i = 0; i < closeHandlers.length; i++){
+        closeHandlers[i]();
+      }
+    };
+    return {
+      onMessage: function(cb){
+        messageHandlers.push(cb);
+        return function(){
+          messageHandlers.splice(messageHandlers.indexOf(cb), 1);
+        };
+      },
+      onClose: function(cb){
+        closeHandlers.push(cb);
+        return function(){
+          closeHandlers.splice(closeHandlers.indexOf(cb), 1);
+        };
+      },
+      send: function(mess){
         ws.send(mess);
-      };
+      },
+      ws: ws
     };
   };
 })(PS["Network.WebSocket"] = PS["Network.WebSocket"] || {});
@@ -1023,7 +1013,8 @@ var PS = {};
   var Data_Argonaut_Encode_Combinators = PS["Data.Argonaut.Encode.Combinators"];
   var Data_Function = PS["Data.Function"];
   var Control_Category = PS["Control.Category"];
-  var Data_Eq = PS["Data.Eq"];        
+  var Data_Eq = PS["Data.Eq"];
+  var Control_Semigroupoid = PS["Control.Semigroupoid"];        
   var WSMessage = function (x) {
       return x;
   };
@@ -1040,11 +1031,11 @@ var PS = {};
       return Data_Argonaut_Encode_Combinators.extend(Data_Argonaut_Encode_Class.encodeJsonJson)(Data_Argonaut_Encode_Combinators.assoc(Data_Argonaut_Encode_Class.encodeJsonJString)("t")(v.t))(Data_Argonaut_Encode_Combinators.extend(Data_Argonaut_Encode_Class.encodeJsonJson)(Data_Argonaut_Encode_Combinators.assoc(Data_Argonaut_Encode_Class.encodeJsonJString)("m")(v.m))(Data_Argonaut_Core.jsonEmptyObject));
   });
   var sendTo = function (dictEncodeJson) {
-      return function (ws) {
-          return function (v) {
+      return function (v) {
+          return function (v1) {
               return function (a) {
-                  return $foreign.send(ws)(Data_Argonaut_Core.stringify(Data_Argonaut_Encode_Class.encodeJson(encodeJsonWSMessage)({
-                      t: v.value0, 
+                  return v.send(Data_Argonaut_Core.stringify(Data_Argonaut_Encode_Class.encodeJson(encodeJsonWSMessage)({
+                      t: v1.value0, 
                       m: Data_Argonaut_Core.stringify(Data_Argonaut_Encode_Class.encodeJson(dictEncodeJson)(a))
                   })));
               };
@@ -1064,33 +1055,42 @@ var PS = {};
       })(Data_Argonaut_Core.toObject(json));
   });
   var listenTo = function (dictDecodeJson) {
-      return function (ws) {
-          return function (v) {
+      return function (v) {
+          return function (v1) {
               return function (handler) {
                   var go = function (mess) {
-                      return Data_Either.either(Control_Monad_Eff_Console.log)(Control_Category.id(Control_Category.categoryFn))(Control_Bind.bind(Data_Either.bindEither)(Control_Bind.bind(Data_Either.bindEither)(Data_Argonaut_Parser.jsonParser(mess))(Data_Argonaut_Decode_Class.decodeJson(decodeJsonWSMessage)))(function (v1) {
-                          var $19 = v1.t === v.value0;
-                          if ($19) {
-                              return Data_Functor.mapFlipped(Data_Either.functorEither)(Control_Bind.bind(Data_Either.bindEither)(Data_Argonaut_Parser.jsonParser(v1.m))(Data_Argonaut_Decode_Class.decodeJson(dictDecodeJson)))(handler);
+                      return Data_Either.either(Control_Monad_Eff_Console.log)(Control_Category.id(Control_Category.categoryFn))(Control_Bind.bind(Data_Either.bindEither)(Control_Bind.bind(Data_Either.bindEither)(Data_Argonaut_Parser.jsonParser(mess))(Data_Argonaut_Decode_Class.decodeJson(decodeJsonWSMessage)))(function (v2) {
+                          var $21 = v2.t === v1.value0;
+                          if ($21) {
+                              return Data_Functor.mapFlipped(Data_Either.functorEither)(Control_Bind.bind(Data_Either.bindEither)(Data_Argonaut_Parser.jsonParser(v2.m))(Data_Argonaut_Decode_Class.decodeJson(dictDecodeJson)))(handler);
                           };
-                          if (!$19) {
+                          if (!$21) {
                               return new Data_Either.Left("WSMessage type param incorrect");
                           };
-                          throw new Error("Failed pattern match at Network.WebSocket line 67, column 20 - line 69, column 66: " + [ $19.constructor.name ]);
+                          throw new Error("Failed pattern match at Network.WebSocket line 71, column 20 - line 73, column 66: " + [ $21.constructor.name ]);
                       }));
                   };
-                  return $foreign.onMessage(ws)(go);
+                  return v.onMessage(go);
               };
+          };
+      };
+  };
+  var connect = function (errcb) {
+      return function (successcb) {
+          return function (url) {
+              return $foreign.connectImpl(errcb)(function ($25) {
+                  return successcb($foreign.wrapWS($25));
+              })(url);
           };
       };
   };
   exports["WSEndpoint"] = WSEndpoint;
   exports["WSMessage"] = WSMessage;
+  exports["connect"] = connect;
   exports["listenTo"] = listenTo;
   exports["sendTo"] = sendTo;
   exports["decodeJsonWSMessage"] = decodeJsonWSMessage;
   exports["encodeJsonWSMessage"] = encodeJsonWSMessage;
-  exports["connect"] = $foreign.connect;
 })(PS["Network.WebSocket"] = PS["Network.WebSocket"] || {});
 (function(exports) {// module WSEndpointExample.Client
   /* global document, exports */
@@ -1111,8 +1111,7 @@ var PS = {};
   exports["echochamber"] = echochamber;
 })(PS["WSEndpointExample.Model"] = PS["WSEndpointExample.Model"] || {});
 (function(exports) {
-  // Generated by psc version 0.10.3
-  "use strict";
+    "use strict";
   var $foreign = PS["WSEndpointExample.Client"];
   var Control_Monad_Eff = PS["Control.Monad.Eff"];
   var Control_Monad_Eff_Timer = PS["Control.Monad.Eff.Timer"];
@@ -1128,14 +1127,25 @@ var PS = {};
   var Control_Applicative = PS["Control.Applicative"];
   var Data_Unit = PS["Data.Unit"];
   var Data_Argonaut_Decode_Class = PS["Data.Argonaut.Decode.Class"];        
+
+  /**
+ *  main :: forall eff. Eff ( dom :: DOM , ajax :: AJAX | eff ) Unit
+ *  main = runAff (\e -> appendToBody $ "Error: " <> message e) (\_ -> appendToBody ("Done!")) do
+ *    ordersForOne <- execEndpoint getOrdersEndpoint 1 unit
+ *    ordersForTwo <- execEndpoint getOrdersEndpoint 2 unit
+ *    liftEff $ appendToBody $ "OrdersForOne: " <> show ordersForOne
+ *    liftEff $ appendToBody $ "OrdersForTwo: " <> show ordersForTwo
+ *    return unit
+ */  
   var main = Network_WebSocket.connect(function (err) {
       return $foreign.appendToBody("Error connecting: " + Data_Show.show(Control_Monad_Eff_Exception.showError)(err));
   })(function (ws) {
       return function __do() {
           Control_Apply.applySecond(Control_Monad_Eff.applyEff)(Control_Monad_Eff_Timer.setInterval(2000)(Network_WebSocket.sendTo(Data_Argonaut_Encode_Class.encodeJsonJString)(ws)(WSEndpointExample_Model.echochamber)("sending stuff")))(Control_Applicative.pure(Control_Monad_Eff.applicativeEff)(Data_Unit.unit))();
-          return Network_WebSocket.listenTo(Data_Argonaut_Decode_Class.decodeJsonString)(ws)(WSEndpointExample_Model.echochamber)(function (mess) {
+          Network_WebSocket.listenTo(Data_Argonaut_Decode_Class.decodeJsonString)(ws)(WSEndpointExample_Model.echochamber)(function (mess) {
               return $foreign.appendToBody(mess);
           })();
+          return Data_Unit.unit;
       };
   })("ws://localhost:8008");
   exports["main"] = main;

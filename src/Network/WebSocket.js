@@ -19,12 +19,12 @@ exports.wrapWS = function(ws){
   var closeHandlers = [];
   ws.onmessage = function(ev){
     for (var i = 0; i < messageHandlers.length; i++){
-      messageHandlers[i](ev.data);
+      messageHandlers[i](ev.data)();
     }
   };
   ws.onclose = function(){
     for (var i = 0; i < closeHandlers.length; i++){
-      closeHandlers[i]();
+      closeHandlers[i]()();
     }
   };
   return {
