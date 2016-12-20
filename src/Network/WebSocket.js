@@ -29,15 +29,19 @@ exports.wrapWS = function(ws){
   };
   return {
     onMessage: function(cb){
-      messageHandlers.push(cb);
       return function(){
-        messageHandlers.splice(messageHandlers.indexOf(cb), 1);
+        messageHandlers.push(cb);
+        return function(){
+          messageHandlers.splice(messageHandlers.indexOf(cb), 1);
+        };
       };
     },
     onClose: function(cb){
-      closeHandlers.push(cb);
       return function(){
-        closeHandlers.splice(closeHandlers.indexOf(cb), 1);
+        closeHandlers.push(cb);
+        return function(){
+          closeHandlers.splice(closeHandlers.indexOf(cb), 1);
+        };
       };
     },
     send: function(mess){
