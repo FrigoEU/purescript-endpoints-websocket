@@ -6,7 +6,7 @@ exports.webSocketServer = function(opts){
   };
 };
 
-exports.onConnection = function(wss){
+exports.onConnectionImpl = function(wss){
   return function(cb){
     return function(){
       wss.on("connection", function(ws){

@@ -9,7 +9,7 @@ import Data.Argonaut.Encode (class EncodeJson, encodeJson, (:=), (~>))
 import Data.Argonaut.Parser (jsonParser)
 import Data.Either (Either(..), either)
 import Data.Maybe (maybe)
-import Prelude (Unit, id, ($), (<#>), (<$>), (<*>), (==), (>>=))
+import Prelude (Unit, id, ($), (<#>), (<$>), (<*>), (<<<), (==), (>>=))
 
 foreign import data WS :: !
 foreign import data WebSocket :: *
@@ -28,12 +28,17 @@ newtype WrappedWS =
     ws :: WebSocket
   }
 
-foreign import wrapWS :: forall e. WebSocket -> Eff (ws :: WS | e) WrappedWS
+foreign import wrapWS :: WebSocket -> WrappedWS
 
-foreign import connect :: forall e.
+foreign import connectImpl :: forall e.
                           (Error -> Eff (ws :: WS | e) Unit) ->
                           (WebSocket -> Eff (ws :: WS | e) Unit) ->
                           String -> Eff (ws :: WS | e) Unit
+connect:: forall e.
+          (Error -> Eff (ws :: WS | e) Unit)
+          -> (WrappedWS -> Eff (ws :: WS | e) Unit)
+          -> String -> Eff (ws :: WS | e) Unit
+connect errcb successcb url = connectImpl errcb (successcb <<< wrapWS) url
 
 instance decodeJsonWSMessage :: DecodeJson WSMessage where
   decodeJson json =

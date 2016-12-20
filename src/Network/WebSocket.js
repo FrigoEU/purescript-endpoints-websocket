@@ -1,4 +1,4 @@
-exports.connect = function(errCb){
+exports.connectImpl = function(errCb){
   return function(successCb){
     return function(url){
       return function(){
@@ -15,36 +15,34 @@ exports.connect = function(errCb){
 };
 
 exports.wrapWS = function(ws){
-  return function(){
-    var messageHandlers = [];
-    var closeHandlers = [];
-    ws.onmessage = function(ev){
-      for (var i = 0; i < messageHandlers.length; i++){
-        messageHandlers[i](ev.data);
-      }
-    };
-    ws.onclose = function(){
-      for (var i = 0; i < closeHandlers.length; i++){
-        closeHandlers[i]();
-      }
-    };
-    return {
-      onMessage: function(cb){
-        messageHandlers.push(cb);
-        return function(){
-          messageHandlers.splice(messageHandlers.indexOf(cb), 1);
-        };
-      },
-      onClose: function(cb){
-        closeHandlers.push(cb);
-        return function(){
-          closeHandlers.splice(closeHandlers.indexOf(cb), 1);
-        };
-      },
-      send: function(mess){
-        ws.send(mess);
-      },
-      ws: ws
-    };
+  var messageHandlers = [];
+  var closeHandlers = [];
+  ws.onmessage = function(ev){
+    for (var i = 0; i < messageHandlers.length; i++){
+      messageHandlers[i](ev.data);
+    }
+  };
+  ws.onclose = function(){
+    for (var i = 0; i < closeHandlers.length; i++){
+      closeHandlers[i]();
+    }
+  };
+  return {
+    onMessage: function(cb){
+      messageHandlers.push(cb);
+      return function(){
+        messageHandlers.splice(messageHandlers.indexOf(cb), 1);
+      };
+    },
+    onClose: function(cb){
+      closeHandlers.push(cb);
+      return function(){
+        closeHandlers.splice(closeHandlers.indexOf(cb), 1);
+      };
+    },
+    send: function(mess){
+      ws.send(mess);
+    },
+    ws: ws
   };
 };
