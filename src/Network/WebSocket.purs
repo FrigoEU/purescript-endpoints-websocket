@@ -13,8 +13,22 @@ import Prelude (Unit, id, ($), (<#>), (<$>), (<*>), (==), (>>=))
 
 foreign import data WS :: !
 foreign import data WebSocket :: *
-data WSEndpoint a = WSEndpoint String
+type RemoveListener = forall e. Unit -> Eff (ws :: WS | e) Unit
+
 newtype WSMessage = WSMessage {t :: String, m :: String}
+data WSEndpoint a = WSEndpoint String
+
+newtype WrappedWS =
+  WrappedWS
+  { onMessage :: forall e. (String -> Eff (ws :: WS, err :: EXCEPTION | e) Unit)
+                           -> Eff (ws :: WS, err :: EXCEPTION | e) RemoveListener,
+    onClose :: forall e. (Unit -> Eff (ws :: WS | e) Unit)
+                         -> Eff (ws :: WS | e) RemoveListener,
+    send :: forall e. String -> Eff (ws :: WS | e) Unit,
+    ws :: WebSocket
+  }
+
+foreign import wrapWS :: forall e. WebSocket -> Eff (ws :: WS | e) WrappedWS
 
 foreign import connect :: forall e.
                           (Error -> Eff (ws :: WS | e) Unit) ->
@@ -38,28 +52,13 @@ instance encodeJsonWSMessage :: EncodeJson WSMessage where
     ~> jsonEmptyObject
 
 
-foreign import onMessage ::
-  forall e.
-  WebSocket ->
-  (String -> Eff (ws :: WS, err :: EXCEPTION | e) Unit) ->
-  Eff (ws :: WS, err :: EXCEPTION | e) Unit
-
-foreign import onClose ::
-  forall e.
-  WebSocket ->
-  (Unit -> Eff (ws :: WS | e) Unit) ->
-  Eff (ws :: WS | e) Unit
-
-foreign import send ::
-  forall e. WebSocket -> String -> Eff (ws :: WS | e) Unit
-
 listenTo :: forall a e. (DecodeJson a) =>
-  WebSocket
+  WrappedWS
   -> WSEndpoint a
   -> (a -> Eff (ws :: WS, console :: CONSOLE, err :: EXCEPTION | e) Unit)
-  -> Eff (ws :: WS, console :: CONSOLE, err :: EXCEPTION | e) Unit
-listenTo ws (WSEndpoint typ) handler =
-  onMessage ws go
+  -> Eff (ws :: WS, console :: CONSOLE, err :: EXCEPTION | e) RemoveListener
+listenTo (WrappedWS ws) (WSEndpoint typ) handler =
+  ws.onMessage go
   where
     go mess = either log id
                $ jsonParser mess >>= decodeJson >>=
@@ -69,9 +68,9 @@ listenTo ws (WSEndpoint typ) handler =
                      else (Left "WSMessage type param incorrect")
 
 sendTo :: forall a e. (EncodeJson a) =>
-  WebSocket
+  WrappedWS
   -> WSEndpoint a
   -> a
   -> Eff (ws :: WS | e) Unit
-sendTo ws (WSEndpoint typ) a =
-  send ws (stringify (encodeJson $ WSMessage {t: typ, m: stringify (encodeJson a)}))
+sendTo (WrappedWS ws) (WSEndpoint typ) a =
+  ws.send (stringify (encodeJson $ WSMessage {t: typ, m: stringify (encodeJson a)}))
