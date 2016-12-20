@@ -967,14 +967,14 @@ var PS = {};
           ws.onerror = function(err){
             errCb(err)();
           };
-          ws.onmessage = function(mess){
+          ws.onmessage = function(ev){
             for (var i = 0; i < messageHandlers.length; i++){
-              messageHandlers[i](mess)();
+              messageHandlers[i](ev.data);
             }
           };
           ws.onclose = function(){
             for (var i = 0; i < closeHandlers.length; i++){
-              closeHandlers[i]({})();
+              closeHandlers[i]();
             }
           };
         };
