@@ -3,13 +3,16 @@ module Network.WebSocket where
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE, log)
 import Control.Monad.Eff.Exception (EXCEPTION, Error)
+import Control.Monad.Eff.Ref (REF, newRef, readRef, writeRef)
+import Control.Monad.State (runState)
+import Control.Monad.Trans.Class (lift)
 import Data.Argonaut.Core (jsonEmptyObject, stringify, toObject)
 import Data.Argonaut.Decode (class DecodeJson, decodeJson, getField)
 import Data.Argonaut.Encode (class EncodeJson, encodeJson, (:=), (~>))
 import Data.Argonaut.Parser (jsonParser)
 import Data.Either (Either(..), either)
 import Data.Maybe (maybe)
-import Prelude (Unit, id, ($), (<#>), (<$>), (<*>), (<<<), (==), (>>=))
+import Prelude (Unit, bind, id, pure, unit, ($), (*>), (<#>), (<$>), (<*>), (<<<), (==), (>>=))
 
 foreign import data WS :: !
 foreign import data WebSocket :: *
@@ -55,6 +58,18 @@ instance encodeJsonWSMessage :: EncodeJson WSMessage where
     "t" := t
     ~> "m" := m
     ~> jsonEmptyObject
+
+listenToOnce :: forall a e. (DecodeJson a) =>
+  WrappedWS
+  -> WSEndpoint a
+  -> (a -> Eff (ws :: WS, console :: CONSOLE, err :: EXCEPTION, ref :: REF | e) Unit)
+  -> Eff (ws :: WS, console :: CONSOLE, err :: EXCEPTION, ref :: REF | e) Unit
+listenToOnce ws typ handler = do
+  cancelRef <- newRef \_ -> pure unit
+  canceller <- listenTo ws typ \a -> do
+    c <- readRef cancelRef
+    c unit *> handler a
+  writeRef cancelRef canceller
 
 
 listenTo :: forall a e. (DecodeJson a) =>
