@@ -16,7 +16,7 @@ import Prelude (Unit, bind, id, pure, unit, ($), (*>), (<#>), (<$>), (<*>), (<<<
 
 foreign import data WS :: !
 foreign import data WebSocket :: *
-type RemoveListener = forall e. Unit -> Eff (ws :: WS | e) Unit
+type RemoveListener = forall e. Eff (ws :: WS | e) Unit
 
 newtype WSMessage = WSMessage {t :: String, m :: String}
 data WSEndpoint a = WSEndpoint String
@@ -65,10 +65,10 @@ listenToOnce :: forall a e. (DecodeJson a) =>
   -> (a -> Eff (ws :: WS, console :: CONSOLE, err :: EXCEPTION, ref :: REF | e) Unit)
   -> Eff (ws :: WS, console :: CONSOLE, err :: EXCEPTION, ref :: REF | e) Unit
 listenToOnce ws typ handler = do
-  cancelRef <- newRef \_ -> pure unit
+  cancelRef <- newRef (pure unit)
   canceller <- listenTo ws typ \a -> do
     c <- readRef cancelRef
-    c unit *> handler a
+    c *> handler a
   writeRef cancelRef canceller
 
 
