@@ -2,7 +2,13 @@ exports.connectImpl = function(errCb){
   return function(successCb){
     return function(url){
       return function(){
-        var ws = new WebSocket(url);
+        try{
+          var ws = new WebSocket(url);
+        } catch (e) {
+          errCb(e)();
+          return;
+        }
+
         ws.onopen = function(){
           successCb(ws)();
         };
