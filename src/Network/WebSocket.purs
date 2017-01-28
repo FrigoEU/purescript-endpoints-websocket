@@ -72,6 +72,8 @@ listenToOnce ws typ handler = do
   writeRef cancelRef canceller
 
 
+-- TODO optimisation: Don't parse the whole message twice, when searching for the type
+-- just parse to json and select "t" column
 listenTo :: forall a e. (DecodeJson a) =>
   WrappedWS
   -> WSEndpoint a
@@ -80,7 +82,7 @@ listenTo :: forall a e. (DecodeJson a) =>
 listenTo (WrappedWS ws) (WSEndpoint typ) handler =
   ws.onMessage go
   where
-    go mess = either log id
+    go mess = either (\_ -> pure unit) id
                $ jsonParser mess >>= decodeJson >>=
                  \(WSMessage {t, m}) ->
                    if t == typ

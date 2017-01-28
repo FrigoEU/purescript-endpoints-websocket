@@ -8,7 +8,7 @@ import Prelude (Unit, (<<<))
 foreign import data WSServer :: !
 foreign import data WebSocketServer :: *
 foreign import webSocketServer ::
-  forall e. {port :: Int, server :: Server} -> Eff (wsserver :: WSServer | e) WebSocketServer
+  forall e. {server :: Server} -> Eff (wsserver :: WSServer | e) WebSocketServer
 
 foreign import onConnectionImpl ::
   forall e.
