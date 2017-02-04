@@ -55,6 +55,9 @@ exports.wrapWS = function(ws){
         ws.send(mess);
       };
     },
+    close: function(){
+      ws.close();
+    },
     ws: ws
   };
 };

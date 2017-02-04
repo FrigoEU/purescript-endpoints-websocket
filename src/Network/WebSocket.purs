@@ -28,6 +28,7 @@ newtype WrappedWS =
     onClose :: forall e. (Unit -> Eff (ws :: WS | e) Unit)
                          -> Eff (ws :: WS | e) RemoveListener,
     send :: forall e. String -> Eff (ws :: WS | e) Unit,
+    close :: forall e. Eff (ws :: WS | e) Unit,
     ws :: WebSocket
   }
 
