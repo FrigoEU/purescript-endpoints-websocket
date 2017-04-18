@@ -1,6 +1,6 @@
 module Network.WebSocket where
 
-import Control.Monad.Eff (Eff)
+import Control.Monad.Eff (Eff, kind Effect)
 import Control.Monad.Eff.Console (CONSOLE, log)
 import Control.Monad.Eff.Exception (EXCEPTION, Error)
 import Control.Monad.Eff.Ref (REF, newRef, readRef, writeRef)
@@ -14,8 +14,8 @@ import Data.Either (Either(..), either)
 import Data.Maybe (maybe)
 import Prelude (Unit, bind, id, pure, unit, ($), (*>), (<#>), (<$>), (<*>), (<<<), (==), (>>=))
 
-foreign import data WS :: !
-foreign import data WebSocket :: *
+foreign import data WS :: Effect
+foreign import data WebSocket :: Type
 type RemoveListener = forall e. Eff (ws :: WS | e) Unit
 
 newtype WSMessage = WSMessage {t :: String, m :: String}
@@ -71,7 +71,6 @@ listenToOnce ws typ handler = do
     c <- readRef cancelRef
     c *> handler a
   writeRef cancelRef canceller
-
 
 -- TODO optimisation: Don't parse the whole message twice, when searching for the type
 -- just parse to json and select "t" column
